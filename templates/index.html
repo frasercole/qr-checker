@@ -52,7 +52,8 @@
   <script>
     const resultDiv = document.getElementById("result");
     const rescanBtn = document.getElementById("rescan-btn");
-    let html5QrcodeScanner;
+    const readerElementId = "reader";
+    let html5Qr;
 
     function showResult(message, isSafe) {
       resultDiv.innerHTML = message;
@@ -65,8 +66,21 @@
       resultDiv.className = "mt-4 p-4 text-base text-left rounded-lg bg-gray-100 text-gray-700";
       rescanBtn.classList.add("hidden");
 
-      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-      html5QrcodeScanner.render(onScanSuccess);
+      html5Qr = new Html5Qrcode(readerElementId);
+      Html5Qrcode.getCameras().then(devices => {
+        if (devices && devices.length) {
+          const rearCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+          html5Qr.start(
+            rearCam.id,
+            { fps: 10, qrbox: 250 },
+            onScanSuccess
+          );
+        } else {
+          resultDiv.innerText = "No cameras found.";
+        }
+      }).catch(err => {
+        resultDiv.innerText = `Camera error: ${err}`;
+      });
     }
 
     function onScanSuccess(decodedText, decodedResult) {
@@ -116,11 +130,11 @@
         lucide.createIcons();
       });
 
-      html5QrcodeScanner.clear();
+      html5Qr.stop().catch(err => console.warn("Stop error:", err));
     }
 
     rescanBtn.addEventListener("click", () => {
-      document.getElementById("reader").innerHTML = "";
+      document.getElementById(readerElementId).innerHTML = "";
       startScanner();
     });
 
