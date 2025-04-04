@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QR Reputation Checker</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    h2 {
+      margin-bottom: 1rem;
+    }
+
+    #reader {
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    #result {
+      margin-top: 1.5rem;
+      font-size: 1.2rem;
+      padding: 1rem;
+      border-radius: 8px;
+      display: inline-block;
+    }
+
+    .safe {
+      background-color: #e0f7e9;
+      color: #2e7d32;
+      border: 2px solid #2e7d32;
+    }
+
+    .risky {
+      background-color: #fdecea;
+      color: #c62828;
+      border: 2px solid #c62828;
+    }
+
+    .loading {
+      font-style: italic;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <h2>Scan a QR Code</h2>
+  <div id="reader"></div>
+  <div id="result" class="loading">Waiting for QR code...</div><br>
+  <button id="rescan-btn" style="display:none; margin-top: 1rem;">🔄 Scan Another</button>
+
+  <script>
+  const resultDiv = document.getElementById("result");
+  const rescanBtn = document.getElementById("rescan-btn");
+  let html5QrcodeScanner;
+
+  function showResult(message, isSafe) {
+    resultDiv.innerText = message;
+    resultDiv.className = isSafe ? "safe" : "risky";
+    rescanBtn.style.display = "inline-block";
+  }
+
+  function startScanner() {
+    resultDiv.innerText = "Waiting for QR code...";
+    resultDiv.className = "loading";
+    rescanBtn.style.display = "none";
+
+    html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", { fps: 10, qrbox: 250 }
+    );
+    html5QrcodeScanner.render(onScanSuccess);
+  }
+
+  function onScanSuccess(decodedText, decodedResult) {
+    resultDiv.className = "loading";
+    resultDiv.innerText = "Checking URL...";
+
+    fetch("/check-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url: decodedText })
+    })
+    .then(response => {
+      if (!response.ok) throw new Error("Server error");
+      return response.json();
+    })
+    .then(data => {
+      if (data.status === "complete") {
+        const msg = `🔗 ${data.url}
+🧠 Page Title: ${data.page_title}
+
+🛡️ Verdict: ${data.verdict}
+Malicious: ${data.malicious}
+Suspicious: ${data.suspicious}`;
+        showResult(msg, data.verdict === "✅ Safe");
+      } else {
+        showResult(`⚠️ Error: ${data.message}`, false);
+      }
+    })
+    .catch(err => {
+      showResult("⚠️ Backend error: " + err.message, false);
+    });
+
+    html5QrcodeScanner.clear(); // Stop scanning
+  }
+
+  rescanBtn.addEventListener("click", () => {
+    document.getElementById("reader").innerHTML = "";
+    startScanner();
+  });
+
+  // Start on page load
+  startScanner();
+</script>
+</body>
+</html>
