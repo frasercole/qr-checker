@@ -18,29 +18,33 @@
       font-size: 1.25rem !important;
       padding: 0.75rem !important;
     }
+    .lucide {
+      width: 1.25rem;
+      height: 1.25rem;
+    }
   </style>
 </head>
-<body class="bg-gradient-to-br from-gray-100 to-gray-200 min-h-screen flex flex-col items-center justify-start px-4 py-6">
-  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
-    <div class="flex items-center justify-center mb-4">
-      <i data-lucide="shield-check" class="w-6 h-6 text-amber-600 mr-2"></i>
-      <h1 class="text-2xl font-bold text-slate-800 tracking-tight">Feedulator QR</h1>
+<body class="bg-gradient-to-br from-pink-50 to-blue-50 min-h-screen flex flex-col items-center justify-start px-4 py-6">
+  <div class="w-full max-w-md text-left">
+    <div class="flex items-center justify-center mb-2">
+      <h1 class="text-4xl font-extrabold text-slate-800 tracking-tight">Feedulator QR</h1>
     </div>
-    <p class="text-center text-sm text-slate-500 mb-4">Scan smart. Stay safe.</p>
+    <p class="text-center text-base text-slate-500 mb-1">Scan smart. Stay safe.</p>
+    <p class="text-center text-sm text-slate-400 mb-4">We'll check any QR code for you to make sure it's good to go.</p>
 
-    <div id="reader" class="rounded-md overflow-hidden border border-gray-300"></div>
+    <div id="reader" class="rounded-md overflow-hidden border border-gray-300 mb-4"></div>
 
-    <div id="result" class="mt-6 p-4 text-base text-center rounded-lg bg-gray-100 text-gray-700">
+    <div id="result" class="mt-4 p-4 text-base text-left rounded-lg bg-gray-100 text-gray-700">
       Waiting for QR code...
     </div>
 
-    <button id="rescan-btn" class="hidden mt-6 w-full py-3 px-4 bg-amber-600 text-white text-lg font-semibold rounded-lg hover:bg-amber-700 flex items-center justify-center gap-2">
-      <i data-lucide="refresh-ccw" class="w-5 h-5"></i> Scan Another
+    <button id="rescan-btn" class="hidden mt-6 w-full py-3 px-4 bg-rose-400 text-white text-lg font-semibold rounded-lg hover:bg-rose-500 flex items-center justify-center gap-2">
+      <i data-lucide="refresh-ccw"></i> Scan Another
     </button>
 
     <div class="mt-4 text-center">
       <a href="#" class="text-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-1">
-        <i data-lucide="help-circle" class="w-4 h-4"></i> What is Feedulator QR?
+        <i data-lucide="help-circle"></i> What is Feedulator QR?
       </a>
     </div>
   </div>
@@ -52,13 +56,13 @@
 
     function showResult(message, isSafe) {
       resultDiv.innerHTML = message;
-      resultDiv.className = `mt-6 p-4 text-base text-center rounded-lg ${isSafe ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}`;
+      resultDiv.className = `mt-4 p-4 text-base text-left rounded-lg ${isSafe ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`;
       rescanBtn.classList.remove("hidden");
     }
 
     function startScanner() {
       resultDiv.innerText = "Waiting for QR code...";
-      resultDiv.className = "mt-6 p-4 text-base text-center rounded-lg bg-gray-100 text-gray-700";
+      resultDiv.className = "mt-4 p-4 text-base text-left rounded-lg bg-gray-100 text-gray-700";
       rescanBtn.classList.add("hidden");
 
       html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
@@ -67,7 +71,7 @@
 
     function onScanSuccess(decodedText, decodedResult) {
       resultDiv.innerText = "Checking URL...";
-      resultDiv.className = "mt-6 p-4 text-base text-center rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-300";
+      resultDiv.className = "mt-4 p-4 text-base text-left rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-200";
 
       fetch("/check-url", {
         method: "POST",
@@ -85,30 +89,30 @@
           const msg = `
             <div class="flex flex-col items-start gap-2">
               <div class="flex items-center gap-2">
-                <i data-lucide="${data.verdict === '✅ Safe' ? 'check-circle' : 'alert-triangle'}" class="w-5 h-5"></i>
+                <i data-lucide="${data.verdict === 'Safe' ? 'check-circle' : 'alert-triangle'}"></i>
                 <strong class="text-lg">${data.verdict}</strong>
               </div>
               <div class="flex items-center gap-2">
-                <i data-lucide="link" class="w-4 h-4"></i>
+                <i data-lucide="link"></i>
                 <span class="break-words">${data.url}</span>
               </div>
               <div class="flex items-center gap-2">
-                <i data-lucide="file-text" class="w-4 h-4"></i>
+                <i data-lucide="file-text"></i>
                 <span>${data.page_title}</span>
               </div>
               <div class="text-sm mt-2">
                 Malicious: <strong>${data.malicious}</strong> | Suspicious: <strong>${data.suspicious}</strong>
               </div>
             </div>`;
-          showResult(msg, data.verdict === "✅ Safe");
+          showResult(msg, data.verdict === "Safe");
           lucide.createIcons();
         } else {
-          showResult(`<i data-lucide="alert-octagon" class="inline w-4 h-4"></i> Error: ${data.message}`, false);
+          showResult(`<div class='flex items-center gap-2'><i data-lucide="alert-octagon"></i><span>Error: ${data.message}</span></div>`, false);
           lucide.createIcons();
         }
       })
       .catch(err => {
-        showResult(`<i data-lucide="alert-octagon" class="inline w-4 h-4"></i> Backend error: ${err.message}`, false);
+        showResult(`<div class='flex items-center gap-2'><i data-lucide="alert-octagon"></i><span>Backend error: ${err.message}</span></div>`, false);
         lucide.createIcons();
       });
 
