@@ -2,122 +2,95 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QR Reputation Checker</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 1rem;
-      text-align: center;
+    /* Enlarge built-in html5-qrcode buttons */
+    .html5-qrcode-button,
+    .html5-qrcode-element {
+      font-size: 1.25rem !important;
+      padding: 1rem 1.5rem !important;
+      margin: 0.5rem 0 !important;
     }
-
-    h2 {
-      margin-bottom: 1rem;
-    }
-
-    #reader {
-      width: 100%;
-      max-width: 400px;
-      margin: 0 auto;
-    }
-
-    #result {
-      margin-top: 1.5rem;
-      font-size: 1.2rem;
-      padding: 1rem;
-      border-radius: 8px;
-      display: inline-block;
-    }
-
-    .safe {
-      background-color: #e0f7e9;
-      color: #2e7d32;
-      border: 2px solid #2e7d32;
-    }
-
-    .risky {
-      background-color: #fdecea;
-      color: #c62828;
-      border: 2px solid #c62828;
-    }
-
-    .loading {
-      font-style: italic;
-      color: #666;
+    select.html5-qrcode-element {
+      font-size: 1.25rem !important;
+      padding: 0.75rem !important;
     }
   </style>
 </head>
-<body>
-  <h2>Scan a QR Code</h2>
-  <div id="reader"></div>
-  <div id="result" class="loading">Waiting for QR code...</div><br>
-  <button id="rescan-btn" style="display:none; margin-top: 1rem;">🔄 Scan Another</button>
+<body class="bg-gray-100 min-h-screen flex flex-col items-center justify-center px-4 py-6">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
+    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">QR Reputation Checker</h2>
+
+    <div id="reader" class="rounded-md overflow-hidden border border-gray-300"></div>
+
+    <div id="result" class="mt-6 p-4 text-base text-center rounded-lg bg-gray-100 text-gray-700">
+      Waiting for QR code...
+    </div>
+
+    <button id="rescan-btn" class="hidden mt-6 w-full py-3 px-4 bg-blue-600 text-white text-lg font-semibold rounded-lg hover:bg-blue-700">
+      🔄 Scan Another
+    </button>
+  </div>
 
   <script>
-  const resultDiv = document.getElementById("result");
-  const rescanBtn = document.getElementById("rescan-btn");
-  let html5QrcodeScanner;
+    const resultDiv = document.getElementById("result");
+    const rescanBtn = document.getElementById("rescan-btn");
+    let html5QrcodeScanner;
 
-  function showResult(message, isSafe) {
-    resultDiv.innerText = message;
-    resultDiv.className = isSafe ? "safe" : "risky";
-    rescanBtn.style.display = "inline-block";
-  }
+    function showResult(message, isSafe) {
+      resultDiv.innerText = message;
+      resultDiv.className = `mt-6 p-4 text-base text-center rounded-lg ${isSafe ? 'bg-green-100 text-green-800 border border-green-300' : 'bg-red-100 text-red-800 border border-red-300'}`;
+      rescanBtn.classList.remove("hidden");
+    }
 
-  function startScanner() {
-    resultDiv.innerText = "Waiting for QR code...";
-    resultDiv.className = "loading";
-    rescanBtn.style.display = "none";
+    function startScanner() {
+      resultDiv.innerText = "Waiting for QR code...";
+      resultDiv.className = "mt-6 p-4 text-base text-center rounded-lg bg-gray-100 text-gray-700";
+      rescanBtn.classList.add("hidden");
 
-    html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader", { fps: 10, qrbox: 250 }
-    );
-    html5QrcodeScanner.render(onScanSuccess);
-  }
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      html5QrcodeScanner.render(onScanSuccess);
+    }
 
-  function onScanSuccess(decodedText, decodedResult) {
-    resultDiv.className = "loading";
-    resultDiv.innerText = "Checking URL...";
+    function onScanSuccess(decodedText, decodedResult) {
+      resultDiv.innerText = "Checking URL...";
+      resultDiv.className = "mt-6 p-4 text-base text-center rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-300";
 
-    fetch("/check-url", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ url: decodedText })
-    })
-    .then(response => {
-      if (!response.ok) throw new Error("Server error");
-      return response.json();
-    })
-    .then(data => {
-      if (data.status === "complete") {
-        const msg = `🔗 ${data.url}
-🧠 Page Title: ${data.page_title}
+      fetch("/check-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ url: decodedText })
+      })
+      .then(response => {
+        if (!response.ok) throw new Error("Server error");
+        return response.json();
+      })
+      .then(data => {
+        if (data.status === "complete") {
+          const msg = `🔗 ${data.url}\n\n🧠 Page Title: ${data.page_title}\n\n🛡️ Verdict: ${data.verdict}\nMalicious: ${data.malicious}\nSuspicious: ${data.suspicious}`;
+          showResult(msg, data.verdict === "✅ Safe");
+        } else {
+          showResult(`⚠️ Error: ${data.message}`, false);
+        }
+      })
+      .catch(err => {
+        showResult("⚠️ Backend error: " + err.message, false);
+      });
 
-🛡️ Verdict: ${data.verdict}
-Malicious: ${data.malicious}
-Suspicious: ${data.suspicious}`;
-        showResult(msg, data.verdict === "✅ Safe");
-      } else {
-        showResult(`⚠️ Error: ${data.message}`, false);
-      }
-    })
-    .catch(err => {
-      showResult("⚠️ Backend error: " + err.message, false);
+      html5QrcodeScanner.clear();
+    }
+
+    rescanBtn.addEventListener("click", () => {
+      document.getElementById("reader").innerHTML = "";
+      startScanner();
     });
 
-    html5QrcodeScanner.clear(); // Stop scanning
-  }
-
-  rescanBtn.addEventListener("click", () => {
-    document.getElementById("reader").innerHTML = "";
     startScanner();
-  });
-
-  // Start on page load
-  startScanner();
-</script>
+  </script>
 </body>
 </html>
