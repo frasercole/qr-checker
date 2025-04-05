@@ -30,39 +30,51 @@
       <h1 class="text-4xl font-extrabold text-slate-800 tracking-tight">Feedulator QR</h1>
     </div>
     <p class="text-center text-base text-slate-500 mb-1">Scan smart. Stay safe.</p>
-    <p class="text-center text-sm text-slate-400 mb-4">We'll check any QR code for you<br>to make sure it's good to go.</p>
+    <p class="text-center text-sm text-slate-400 mb-4">We'll check any QR code for you to make sure it's good to go.</p>
+
+    <div class="flex justify-center gap-4 mb-4">
+      <button id="qr-mode" class="py-2 px-4 bg-rose-400 text-white font-medium rounded-md">QR Code</button>
+      <button id="product-mode" class="py-2 px-4 bg-gray-200 text-slate-700 font-medium rounded-md">Product</button>
+    </div>
 
     <div id="reader" class="rounded-md overflow-hidden border border-gray-300 mb-4"></div>
 
     <div id="result" class="mt-4 p-4 text-base text-left rounded-lg bg-gray-100 text-gray-700">
-      Waiting for QR code...
+      Waiting for scan...
     </div>
 
     <button id="rescan-btn" class="hidden mt-6 w-full py-3 px-4 bg-rose-400 text-white text-lg font-semibold rounded-lg hover:bg-rose-500 flex items-center justify-center gap-2">
       <i data-lucide="refresh-ccw"></i> Scan Another
     </button>
-
-    <div class="mt-4 text-center">
-      <a href="#" class="text-sm text-slate-500 hover:text-slate-700 flex items-center justify-center gap-1">
-        <i data-lucide="help-circle"></i> What is Feedulator QR?
-      </a>
-    </div>
   </div>
 
   <script>
     const resultDiv = document.getElementById("result");
     const rescanBtn = document.getElementById("rescan-btn");
+    const qrBtn = document.getElementById("qr-mode");
+    const productBtn = document.getElementById("product-mode");
     const readerElementId = "reader";
     let html5Qr;
+    let scanMode = "qr";
 
-    function showResult(message, isSafe) {
+    function showResult(message, isSafe = true) {
       resultDiv.innerHTML = message;
       resultDiv.className = `mt-4 p-4 text-base text-left rounded-lg ${isSafe ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`;
       rescanBtn.classList.remove("hidden");
     }
 
+    function getCountryFromBarcode(upc) {
+      const prefix = upc.substring(0, 3);
+      if (/^(00|01|02|03|04|05|06|07|08|09|10|11|12|13)$/.test(prefix)) return "🇺🇸 / 🇨🇦 USA or Canada";
+      if (prefix >= "690" && prefix <= "699") return "🇨🇳 China";
+      if (prefix >= "500" && prefix <= "509") return "🇬🇧 United Kingdom";
+      if (prefix >= "300" && prefix <= "379") return "🇫🇷 France";
+      if (prefix >= "400" && prefix <= "440") return "🇩🇪 Germany";
+      return "🌍 Unknown origin";
+    }
+
     function startScanner() {
-      resultDiv.innerText = "Waiting for QR code...";
+      resultDiv.innerText = "Waiting for scan...";
       resultDiv.className = "mt-4 p-4 text-base text-left rounded-lg bg-gray-100 text-gray-700";
       rescanBtn.classList.add("hidden");
 
@@ -70,11 +82,14 @@
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length) {
           const rearCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
-          html5Qr.start(
-            rearCam.id,
-            { fps: 10, qrbox: 250 },
-            onScanSuccess
-          );
+          const config = {
+            fps: 10,
+            qrbox: 250,
+            formatsToSupport: scanMode === "qr"
+              ? [Html5QrcodeSupportedFormats.QR_CODE]
+              : [Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.EAN_13]
+          };
+          html5Qr.start(rearCam.id, config, onScanSuccess);
         } else {
           resultDiv.innerText = "No cameras found.";
         }
@@ -84,26 +99,22 @@
     }
 
     function onScanSuccess(decodedText, decodedResult) {
-      resultDiv.innerText = "Checking URL...";
+      html5Qr.stop().catch(err => console.warn("Stop error:", err));
+      resultDiv.innerText = "Processing...";
       resultDiv.className = "mt-4 p-4 text-base text-left rounded-lg bg-yellow-100 text-yellow-800 border border-yellow-200";
 
-      fetch("/check-url", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ url: decodedText })
-      })
-      .then(response => {
-        if (!response.ok) throw new Error("Server error");
-        return response.json();
-      })
-      .then(data => {
-        if (data.status === "complete") {
-          const msg = `
+      if (scanMode === "qr") {
+        fetch("/check-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: decodedText })
+        })
+        .then(response => response.json())
+        .then(data => {
+          let msg = `
             <div class="flex flex-col items-start gap-2">
               <div class="flex items-center gap-2">
-                <i data-lucide="${data.verdict === 'Safe' ? 'check-circle' : 'alert-triangle'}"></i>
+                <i data-lucide="${data.verdict === '✅ Safe' ? 'check-circle' : 'alert-triangle'}"></i>
                 <strong class="text-lg">${data.verdict}</strong>
               </div>
               <div class="flex items-center gap-2">
@@ -116,24 +127,68 @@
               </div>
               <div class="text-sm mt-2">
                 Malicious: <strong>${data.malicious}</strong> | Suspicious: <strong>${data.suspicious}</strong>
-              </div>
-            </div>`;
-          showResult(msg, data.verdict === "Safe");
+              </div>`;
+          if (data.thumbnail) {
+            msg += `<div class='mt-4'><img src='${data.thumbnail}' alt='Preview' class='rounded-md border shadow w-full'/></div>`;
+          }
+          msg += `</div>`;
+          showResult(msg, data.verdict === "✅ Safe");
           lucide.createIcons();
-        } else {
-          showResult(`<div class='flex items-center gap-2'><i data-lucide="alert-octagon"></i><span>Error: ${data.message}</span></div>`, false);
-          lucide.createIcons();
-        }
-      })
-      .catch(err => {
-        showResult(`<div class='flex items-center gap-2'><i data-lucide="alert-octagon"></i><span>Backend error: ${err.message}</span></div>`, false);
-        lucide.createIcons();
-      });
-
-      html5Qr.stop().catch(err => console.warn("Stop error:", err));
+        })
+        .catch(err => showResult(`Error: ${err.message}`, false));
+      } else {
+        const upc = decodedText;
+        fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${upc}`)
+          .then(response => response.json())
+          .then(data => {
+            if (data.items && data.items.length > 0) {
+              const item = data.items[0];
+              const msg = `
+                <div class="flex flex-col items-start gap-2">
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="box"></i>
+                    <strong>${item.title}</strong>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="badge-dollar-sign"></i>
+                    <span>Brand: ${item.brand}</span>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <i data-lucide="globe"></i>
+                    <span>Origin: ${getCountryFromBarcode(upc)}</span>
+                  </div>
+                </div>`;
+              showResult(msg);
+              lucide.createIcons();
+            } else {
+              showResult("No product found.", false);
+            }
+          })
+          .catch(err => showResult(`Error: ${err.message}`, false));
+      }
     }
 
     rescanBtn.addEventListener("click", () => {
+      document.getElementById(readerElementId).innerHTML = "";
+      startScanner();
+    });
+
+    qrBtn.addEventListener("click", () => {
+      scanMode = "qr";
+      qrBtn.classList.replace("bg-gray-200", "bg-rose-400");
+      qrBtn.classList.replace("text-slate-700", "text-white");
+      productBtn.classList.replace("bg-rose-400", "bg-gray-200");
+      productBtn.classList.replace("text-white", "text-slate-700");
+      document.getElementById(readerElementId).innerHTML = "";
+      startScanner();
+    });
+
+    productBtn.addEventListener("click", () => {
+      scanMode = "product";
+      productBtn.classList.replace("bg-gray-200", "bg-rose-400");
+      productBtn.classList.replace("text-slate-700", "text-white");
+      qrBtn.classList.replace("bg-rose-400", "bg-gray-200");
+      qrBtn.classList.replace("text-white", "text-slate-700");
       document.getElementById(readerElementId).innerHTML = "";
       startScanner();
     });

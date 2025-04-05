@@ -4,11 +4,24 @@ from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
 from bs4 import BeautifulSoup
 
+
 app = Flask(__name__)
 load_dotenv()
 
 VT_API_KEY = os.getenv("VT_API_KEY")
+LINK_PREVIEW_API_KEY = os.getenv("LINK_PREVIEW_API_KEY")
+
+
 VT_URL = "https://www.virustotal.com/api/v3/urls"
+
+def get_link_preview(url):
+    try:
+        preview = requests.get(
+            f"https://api.linkpreview.net/?key={LINK_PREVIEW_API_KEY}&q={url}"
+        ).json()
+        return preview.get("image", "")  # return thumbnail if available
+    except Exception as e:
+        return ""
 
 def get_virustotal_report(url):
     # Step 1: Get a URL scan ID
@@ -69,6 +82,8 @@ def check_url():
     
     title = get_page_title(url)
     result["page_title"] = title
+
+    result["thumbnail"] = get_link_preview(url)
     
     return jsonify(result)
 

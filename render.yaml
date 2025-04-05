@@ -7,3 +7,5 @@ services:
     envVars:
       - key: VT_API_KEY
         value: f0cf3bc282876f84c973762f311227437892c290dec2919632e97fee2a9e95e4
+      - key: LINK_PREVIEW_API_KEY
+        value: d3033a2ca6098d0dd609ca63b40d0e69
