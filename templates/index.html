@@ -82,16 +82,21 @@
       Html5Qrcode.getCameras().then(devices => {
         if (devices && devices.length) {
           const rearCam = devices.find(d => d.label.toLowerCase().includes("back")) || devices[0];
+
+          const constraints = {
+            deviceId: { exact: rearCam.id },
+            advanced: [{ focusMode: "continuous" }]
+          };
+
           const config = {
             fps: 10,
             qrbox: 250,
             formatsToSupport: scanMode === "qr"
               ? [Html5QrcodeSupportedFormats.QR_CODE]
               : [Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.EAN_13],
-            videoConstraints: {
-              advanced: [{ focusMode: "continuous" }]
-            }
+            videoConstraints: constraints
           };
+
           html5Qr.start(rearCam.id, config, onScanSuccess);
         } else {
           resultDiv.innerText = "No cameras found.";
