@@ -14,14 +14,6 @@ LINK_PREVIEW_API_KEY = os.getenv("LINK_PREVIEW_API_KEY")
 
 VT_URL = "https://www.virustotal.com/api/v3/urls"
 
-def get_link_preview(url):
-    try:
-        preview = requests.get(
-            f"https://api.linkpreview.net/?key={LINK_PREVIEW_API_KEY}&q={url}"
-        ).json()
-        return preview.get("image", "")  # return thumbnail if available
-    except Exception as e:
-        return ""
 
 def get_virustotal_report(url):
     # Step 1: Get a URL scan ID
@@ -56,6 +48,18 @@ def get_virustotal_report(url):
         "verdict": "⚠️ Risky" if malicious > 0 or suspicious > 0 else "✅ Safe"
     }
 
+def get_link_preview(url):
+    try:
+        response = requests.get(
+            f"https://api.linkpreview.net/?key={LINK_PREVIEW_API_KEY}&q={url}",
+            timeout=5
+        )
+        data = response.json()
+        return data.get("image", "")
+    except Exception:
+        return ""
+
+
 def get_page_title(url):
     try:
         response = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0"})
@@ -86,6 +90,22 @@ def check_url():
     result["thumbnail"] = get_link_preview(url)
     
     return jsonify(result)
+
+@app.route("/check-upc", methods=["POST"])
+def check_upc():
+    data = request.get_json()
+    upc = data.get("upc")
+    if not upc:
+        return jsonify({"error": "No UPC provided"}), 400
+
+    try:
+        response = requests.get(
+            f"https://api.upcitemdb.com/prod/trial/lookup?upc={upc}",
+            timeout=5
+        )
+        return jsonify(response.json())
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5050))

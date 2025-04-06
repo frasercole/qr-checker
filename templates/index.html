@@ -138,33 +138,37 @@
         .catch(err => showResult(`Error: ${err.message}`, false));
       } else {
         const upc = decodedText;
-        fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${upc}`)
-          .then(response => response.json())
-          .then(data => {
-            if (data.items && data.items.length > 0) {
-              const item = data.items[0];
-              const msg = `
-                <div class="flex flex-col items-start gap-2">
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="box"></i>
-                    <strong>${item.title}</strong>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="badge-dollar-sign"></i>
-                    <span>Brand: ${item.brand}</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <i data-lucide="globe"></i>
-                    <span>Origin: ${getCountryFromBarcode(upc)}</span>
-                  </div>
-                </div>`;
-              showResult(msg);
-              lucide.createIcons();
-            } else {
-              showResult("No product found.", false);
-            }
-          })
-          .catch(err => showResult(`Error: ${err.message}`, false));
+        fetch("/check-upc", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ upc })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.items && data.items.length > 0) {
+            const item = data.items[0];
+            const msg = `
+              <div class="flex flex-col items-start gap-2">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="box"></i>
+                  <strong>${item.title}</strong>
+                </div>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="badge-dollar-sign"></i>
+                  <span>Brand: ${item.brand}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <i data-lucide="globe"></i>
+                  <span>Origin: ${getCountryFromBarcode(upc)}</span>
+                </div>
+              </div>`;
+            showResult(msg);
+            lucide.createIcons();
+          } else {
+            showResult("No product found.", false);
+          }
+        })
+        .catch(err => showResult(`Error: ${err.message}`, false));
       }
     }
 
