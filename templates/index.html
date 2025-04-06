@@ -87,7 +87,10 @@
             qrbox: 250,
             formatsToSupport: scanMode === "qr"
               ? [Html5QrcodeSupportedFormats.QR_CODE]
-              : [Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.EAN_13]
+              : [Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.EAN_13],
+            videoConstraints: {
+              advanced: [{ focusMode: "continuous" }]
+            }
           };
           html5Qr.start(rearCam.id, config, onScanSuccess);
         } else {
