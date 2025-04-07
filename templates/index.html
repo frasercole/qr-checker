@@ -139,7 +139,14 @@
           if (data.thumbnail) {
             msg += `<div class='mt-4'><img src='${data.thumbnail}' alt='Preview' class='rounded-md border shadow w-full'/></div>`;
           }
-          msg += `</div>`;
+          msg += `
+            <div class='mt-4'>
+              <a href='${data.url}' target='_blank' rel='noopener noreferrer'
+                 class='inline-block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition'>
+                🚀 Take me there
+              </a>
+            </div>
+          </div>`;
           showResult(msg, data.verdict === "✅ Safe");
           lucide.createIcons();
         })
