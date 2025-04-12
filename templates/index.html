@@ -139,8 +139,15 @@
         let url = decodedText;
         let smartWarning = "";
 
-        if (isShortUrl(url)) smartWarning += "<p>⚠️ This appears to be a short link.</p>";
-        if (isIpAddress(url)) smartWarning += "<p>⚠️ This URL uses a raw IP address, which can be suspicious.</p>";
+        if (isShortUrl(decodedText)) {
+          smartWarning += "<p>⚠️ This appears to be a short link.</p>";
+          url = await expandUrlIfShort(url);
+          smartWarning += `<p>🔍 Expanded to: <span class='break-words'>${url}</span></p>`;
+        }
+
+        if (isIpAddress(url)) {
+          smartWarning += "<p>⚠️ This URL uses a raw IP address, which can be suspicious.</p>";
+        }
 
         if (isShortUrl(url)) {
           url = await expandUrlIfShort(url);
