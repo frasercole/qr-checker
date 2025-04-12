@@ -82,7 +82,12 @@
 
     async function expandUrlIfShort(url) {
       try {
-        const response = await fetch(url, { method: "HEAD", redirect: "follow" });
+        const response = await fetch(url, {
+          method: "GET",
+          redirect: "follow",
+          mode: "cors"
+        });
+        if (!response.ok) return url;
         return response.url;
       } catch (e) {
         return url;
